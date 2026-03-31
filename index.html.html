@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>K&A♥️ - Finanzas Compartidas</title>
+    <!-- Tailwind CSS: Proporciona clases utilitarias para el diseño sin escribir CSS manual -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM: Librerías base para la interfaz de usuario -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel: Permite que el navegador lea la sintaxis JSX (React) directamente -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Lucide Icons: Biblioteca de iconos modernos -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap");
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: contain;
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      .view-transition {
+        animation: slideUp 0.4s ease-out;
+      }
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      /* Ocultar barra de desplazamiento en elementos horizontales */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body class="bg-[#fff5f5] text-slate-900">
+    <!-- Contenedor donde React renderizará la aplicación -->
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      /**
+       * Componente de Icono
+       * Utiliza lucide.createIcons() después de cada renderizado para convertir
+       * las etiquetas <i> en SVGs.
+       */
+      const Icon = ({ name, size = 20, className = "" }) => {
+        useEffect(() => {
+          const timer = setTimeout(() => {
+            if (window.lucide) window.lucide.createIcons();
+          }, 50);
+          return () => clearTimeout(timer);
+        }, [name]);
+        return (
+          <i
+            data-lucide={name}
+            className={className}
+            style={{ width: size, height: size, display: "inline-block" }}
+          ></i>
+        );
+      };
+
+      const App = () => {
+        // Persistencia: Cargamos datos iniciales desde LocalStorage si existen
+        const [deposits, setDeposits] = useState(() =>
+          JSON.parse(localStorage.getItem("ka_deposits") || "[]")
+        );
+        const [expenses, setExpenses] = useState(() =>
+          JSON.parse(localStorage.getItem("ka_expenses") || "[]")
+        );
+        const [projects, setProjects] = useState(() =>
+          JSON.parse(
+            localStorage.getItem("ka_projects") ||
+              JSON.stringify([
+                {
+                  id: 1,
+                  name: "Viajes",
+                  emoji: "✈️",
+                  cost: 0,
+                  completed: false,
+                },
+                {
+                  id: 2,
+                  name: "Aniversario",
+                  emoji: "🍾",
+                  cost: 0,
+                  completed: false,
+                },
+                {
+                  id: 3,
+                  name: "Vehículo",
+                  emoji: "🚗",
+                  cost: 0,
+                  completed: false,
+                },
+                {
+                  id: 4,
+                  name: "Terrenos",
+                  emoji: "🏡",
+                  cost: 0,
+                  completed: false,
+                },
+                {
+                  id: 5,
+                  name: "Emergencias",
+                  emoji: "🚨",
+                  cost: 0,
+                  completed: false,
+                },
+              ])
+          )
+        );
+
+        const [view, setView] = useState("dashboard");
+
+        // Guardar cambios en el almacenamiento local del navegador
+        useEffect(
+          () => localStorage.setItem("ka_deposits", JSON.stringify(deposits)),
+          [deposits]
+        );
+        useEffect(
+          () => localStorage.setItem("ka_expenses", JSON.stringify(expenses)),
+          [expenses]
+        );
+        useEffect(
+          () => localStorage.setItem("ka_projects", JSON.stringify(projects)),
+          [projects]
+        );
+
+        const formatGs = (val) => new Intl.NumberFormat("es-PY").format(val);
+
+        // Cálculos financieros globales
+        const totalIncomes = deposits.reduce(
+          (acc, curr) => acc + Number(curr.amount),
+          0
+        );
+        const totalOutcomes = expenses.reduce(
+          (acc, curr) => acc + Number(curr.amount),
+          0
+        );
+        const totalProjectCosts = projects
+          .filter((p) => p.completed)
+          .reduce((acc, curr) => acc + Number(curr.cost), 0);
+        const currentBalance = totalIncomes - totalOutcomes - totalProjectCosts;
+
+        // Estados para los formularios de entrada
+        const [depForm, setDepForm] = useState({ user: "Kathe", amount: "" });
+        const [expForm, setExpForm] = useState({
+          user: "Kathe",
+          desc: "",
+          amount: "",
+        });
+
+        const handleAddDeposit = (e) => {
+          e.preventDefault();
+          if (!depForm.amount || depForm.amount <= 0) return;
+          setDeposits([
+            { ...depForm, id: Date.now(), date: new Date().toISOString() },
+            ...deposits,
+          ]);
+          setDepForm({ ...depForm, amount: "" });
+        };
+
+        const handleAddExpense = (e) => {
+          e.preventDefault();
+          if (!expForm.amount || !expForm.desc || expForm.amount <= 0) return;
+          setExpenses([
+            { ...expForm, id: Date.now(), date: new Date().toISOString() },
+            ...expenses,
+          ]);
+          setExpForm({ ...expForm, amount: "", desc: "" });
+        };
+
+        const handleDelete = (type, id) => {
+          if (window.confirm("¿Estás seguro de eliminar este registro?")) {
+            if (type === "dep")
+              setDeposits(deposits.filter((d) => d.id !== id));
+            if (type === "exp")
+              setExpenses(expenses.filter((e) => e.id !== id));
+          }
+        };
+
+        const exportData = () => {
+          const data = { deposits, expenses, projects };
+          const blob = new Blob([JSON.stringify(data, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `KA_Finanzas_${
+            new Date().toISOString().split("T")[0]
+          }.json`;
+          a.click();
+        };
+
+        return (
+          <div className="max-w-md mx-auto min-h-screen relative pb-32">
+            {/* Navegación Superior */}
+            <header className="p-6 flex justify-between items-center bg-white/60 backdrop-blur-md sticky top-0 z-50">
+              <div className="flex items-center gap-2">
+                <div className="bg-rose-600 p-2 rounded-xl shadow-lg">
+                  <Icon
+                    name="heart"
+                    className="text-white fill-white"
+                    size={18}
+                  />
+                </div>
+                <h1 className="font-extrabold text-xl tracking-tighter uppercase text-slate-800">
+                  K&A Finanzas
+                </h1>
+              </div>
+              <div className="text-[10px] font-black text-rose-500 bg-rose-50 px-3 py-1 rounded-full border border-rose-100 uppercase tracking-widest">
+                Gs 🇵🇾
+              </div>
+            </header>
+
+            <div className="px-6 space-y-6 pt-2">
+              {/* Resumen de Saldo */}
+              <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden transition-all active:scale-[0.98]">
+                <div className="absolute -right-6 -top-6 opacity-10 rotate-12">
+                  <Icon name="wallet" size={160} />
+                </div>
+                <div className="relative z-10">
+                  <p className="text-rose-400 text-[10px] font-extrabold uppercase tracking-[0.3em] mb-1">
+                    Disponible
+                  </p>
+                  <h2 className="text-4xl font-extrabold tracking-tighter">
+                    Gs. {formatGs(currentBalance)}
+                  </h2>
+                  <div className="mt-6 flex gap-2 overflow-x-auto no-scrollbar text-[9px] font-black uppercase">
+                    <div className="bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-xl border border-emerald-500/30 whitespace-nowrap">
+                      Ingresos: {formatGs(totalIncomes)}
+                    </div>
+                    <div className="bg-rose-500/20 text-rose-400 px-3 py-1.5 rounded-xl border border-rose-500/30 whitespace-nowrap">
+                      Gastos: {formatGs(totalOutcomes + totalProjectCosts)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vistas Dinámicas */}
+              {view === "dashboard" && (
+                <div className="space-y-6 view-transition">
+                  {/* Form Ahorro */}
+                  <div className="glass-card p-6 rounded-[2rem] shadow-sm">
+                    <div className="flex items-center gap-2 mb-4 text-emerald-600">
+                      <Icon name="plus-circle" size={18} />
+                      <h3 className="text-xs font-extrabold uppercase tracking-widest">
+                        Nuevo Depósito
+                      </h3>
+                    </div>
+                    <form onSubmit={handleAddDeposit} className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        {["Kathe", "Alex"].map((u) => (
+                          <button
+                            key={u}
+                            type="button"
+                            onClick={() => setDepForm({ ...depForm, user: u })}
+                            className={`py-3 rounded-xl font-bold text-sm transition-all ${
+                              depForm.user === u
+                                ? "bg-rose-600 text-white shadow-md"
+                                : "bg-white text-slate-400 border border-slate-100"
+                            }`}
+                          >
+                            {u}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300">
+                          GS.
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="Monto"
+                          className="w-full bg-white rounded-xl p-3 pl-12 font-extrabold text-emerald-600 shadow-sm outline-none border-none focus:ring-2 focus:ring-emerald-200"
+                          value={depForm.amount}
+                          onChange={(e) =>
+                            setDepForm({ ...depForm, amount: e.target.value })
+                          }
+                        />
+                      </div>
+                      <button className="w-full bg-emerald-600 text-white font-extrabold py-4 rounded-2xl shadow-lg uppercase text-xs tracking-widest active:scale-95 transition-transform">
+                        Registrar Ahorro
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Form Gasto */}
+                  <div className="glass-card p-6 rounded-[2rem] shadow-sm">
+                    <div className="flex items-center gap-2 mb-4 text-rose-600">
+                      <Icon name="arrow-down-circle" size={18} />
+                      <h3 className="text-xs font-extrabold uppercase tracking-widest">
+                        Registrar Egreso
+                      </h3>
+                    </div>
+                    <form onSubmit={handleAddExpense} className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="¿En qué gastamos?"
+                        className="w-full bg-white rounded-xl p-4 font-bold text-sm shadow-sm outline-none border-none focus:ring-2 focus:ring-rose-200"
+                        value={expForm.desc}
+                        onChange={(e) =>
+                          setExpForm({ ...expForm, desc: e.target.value })
+                        }
+                      />
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-300">
+                          GS.
+                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="Monto"
+                          className="w-full bg-white rounded-xl p-3 pl-12 font-extrabold text-rose-600 shadow-sm outline-none border-none focus:ring-2 focus:ring-rose-200"
+                          value={expForm.amount}
+                          onChange={(e) =>
+                            setExpForm({ ...expForm, amount: e.target.value })
+                          }
+                        />
+                      </div>
+                      <button className="w-full bg-rose-600 text-white font-extrabold py-4 rounded-2xl shadow-lg uppercase text-xs tracking-widest active:scale-95 transition-transform">
+                        Confirmar Gasto
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {view === "projects" && (
+                <div className="space-y-4 view-transition pb-10">
+                  <div className="flex justify-between items-center px-2">
+                    <h3 className="font-extrabold text-lg uppercase tracking-tighter text-slate-700">
+                      Metas y Sueños 🚀
+                    </h3>
+                    <span className="text-[10px] font-black bg-white px-2 py-1 rounded-lg text-slate-400">
+                      Gs. {formatGs(currentBalance)} disponibles
+                    </span>
+                  </div>
+                  <div className="grid gap-4">
+                    {projects.map((p) => (
+                      <div
+                        key={p.id}
+                        className={`p-6 rounded-[2.5rem] border-2 transition-all shadow-sm ${
+                          p.completed
+                            ? "bg-emerald-50 border-emerald-200 scale-[0.98]"
+                            : "bg-white border-white"
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-4">
+                          <span className="text-4xl">{p.emoji}</span>
+                          <button
+                            onClick={() =>
+                              setProjects(
+                                projects.map((item) =>
+                                  item.id === p.id
+                                    ? { ...item, completed: !item.completed }
+                                    : item
+                                )
+                              )
+                            }
+                          >
+                            <Icon
+                              name="check-circle"
+                              className={
+                                p.completed
+                                  ? "text-emerald-500 fill-emerald-100"
+                                  : "text-slate-100"
+                              }
+                              size={32}
+                            />
+                          </button>
+                        </div>
+                        <div className="flex justify-between items-end">
+                          <h4 className="font-extrabold uppercase text-[10px] tracking-[0.2em] text-slate-400 mb-1">
+                            {p.name}
+                          </h4>
+                          {!p.completed && p.cost > 0 && (
+                            <span
+                              className={`text-[9px] font-bold ${
+                                currentBalance >= p.cost
+                                  ? "text-emerald-500"
+                                  : "text-rose-400"
+                              }`}
+                            >
+                              {currentBalance >= p.cost
+                                ? "¡Podemos pagarlo!"
+                                : `Faltan Gs. ${formatGs(
+                                    p.cost - currentBalance
+                                  )}`}
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          className="w-full bg-transparent border-b border-slate-100 focus:border-rose-400 font-extrabold text-xl py-2 outline-none transition-colors"
+                          value={p.cost || ""}
+                          placeholder="Gs. Costo"
+                          onChange={(e) =>
+                            setProjects(
+                              projects.map((item) =>
+                                item.id === p.id
+                                  ? {
+                                      ...item,
+                                      cost: parseInt(e.target.value) || 0,
+                                    }
+                                  : item
+                              )
+                            )
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {view === "history" && (
+                <div className="space-y-4 view-transition pb-10">
+                  <div className="flex justify-between items-center px-2">
+                    <h3 className="font-extrabold text-lg uppercase tracking-tighter text-slate-700">
+                      Historial de Cuenta
+                    </h3>
+                    <button
+                      onClick={exportData}
+                      className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                    >
+                      <Icon name="download" size={18} />
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {[
+                      ...deposits.map((d) => ({ ...d, type: "dep" })),
+                      ...expenses.map((e) => ({ ...e, type: "exp" })),
+                    ]
+                      .sort((a, b) => b.id - a.id)
+                      .map((m) => (
+                        <div
+                          key={m.id}
+                          className="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-rose-50 active:bg-rose-50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`p-2.5 rounded-xl ${
+                                m.type === "exp"
+                                  ? "bg-rose-50 text-rose-500"
+                                  : "bg-emerald-50 text-emerald-500"
+                              }`}
+                            >
+                              <Icon
+                                name={
+                                  m.type === "exp"
+                                    ? "arrow-down-left"
+                                    : "arrow-up-right"
+                                }
+                                size={16}
+                              />
+                            </div>
+                            <div>
+                              <p className="font-black text-[11px] uppercase tracking-tighter text-slate-800">
+                                <span className="text-rose-500">{m.user}</span>{" "}
+                                • {m.desc || "Ahorro"}
+                              </p>
+                              <p className="text-[9px] text-slate-400 font-bold uppercase">
+                                {new Date(m.date).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <p
+                              className={`font-extrabold text-sm ${
+                                m.type === "exp"
+                                  ? "text-rose-600"
+                                  : "text-emerald-600"
+                              }`}
+                            >
+                              {m.type === "exp" ? "-" : "+"}{" "}
+                              {formatGs(m.amount)}
+                            </p>
+                            <button
+                              onClick={() => handleDelete(m.type, m.id)}
+                              className="p-1 text-slate-200 hover:text-rose-500"
+                            >
+                              <Icon name="x" size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    {deposits.length === 0 && expenses.length === 0 && (
+                      <div className="py-20 text-center text-slate-300 italic text-sm">
+                        No hay movimientos registrados todavía
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navbar Inferior Estilo App */}
+            <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-xl border-t border-rose-100 px-10 py-5 flex justify-between items-center z-50 rounded-t-[2.5rem] shadow-2xl">
+              <button
+                onClick={() => setView("dashboard")}
+                className={`flex flex-col items-center gap-1 transition-all ${
+                  view === "dashboard"
+                    ? "text-rose-600 scale-110"
+                    : "text-slate-300"
+                }`}
+              >
+                <Icon name="layout-grid" size={24} />
+                <span className="text-[8px] font-black uppercase tracking-widest">
+                  Inicio
+                </span>
+              </button>
+              <button
+                onClick={() => setView("projects")}
+                className={`flex flex-col items-center gap-1 transition-all ${
+                  view === "projects"
+                    ? "text-rose-600 scale-110"
+                    : "text-slate-300"
+                }`}
+              >
+                <Icon name="target" size={24} />
+                <span className="text-[8px] font-black uppercase tracking-widest">
+                  Metas
+                </span>
+              </button>
+              <button
+                onClick={() => setView("history")}
+                className={`flex flex-col items-center gap-1 transition-all ${
+                  view === "history"
+                    ? "text-rose-600 scale-110"
+                    : "text-slate-300"
+                }`}
+              >
+                <Icon name="history" size={24} />
+                <span className="text-[8px] font-black uppercase tracking-widest">
+                  Lista
+                </span>
+              </button>
+            </nav>
+          </div>
+        );
+      };
+
+      // Renderizado final
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
